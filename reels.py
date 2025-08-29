@@ -47,65 +47,61 @@ def create_ass_file(segments, ass_path="temp_subtitles.ass"):
 
     subs = pysubs2.SSAFile()
 
-    # Definisci lo stile dei sottotitoli
-    subs.styles["Default"].fontname = "Arial"
-    subs.styles["Default"].fontsize = 28
-    subs.styles["Default"].primarycolor = pysubs2.Color(255, 255, 255) # Testo non evidenziato (Bianco)
-    subs.styles["Default"].secondarycolor = pysubs2.Color(0, 255, 255) # Testo evidenziato (Ciano)
-    subs.styles["Default"].outlinecolor = pysubs2.Color(0, 0, 0) # Bordo (Nero)
-    subs.styles["Default"].backcolor = pysubs2.Color(0, 0, 0, 0) # Sfondo del testo
-    subs.styles["Default"].outline = 2
-    subs.styles["Default"].shadow = 1
-    subs.styles["Default"].alignment = 2 # In basso al centro
+    # Definisci uno stile per i sottotitoli evidenziati (Ciano)
+    # Non è necessario lo stile BaseText se non lo useremo
+    subs.styles["Default"] = pysubs2.SSAStyle(
+        fontname="Arial",
+        fontsize=28,
+        primarycolor=pysubs2.Color(0, 255, 255), # Ciano/Aqua (colore principale)
+        outlinecolor=pysubs2.Color(0, 0, 0),    # Nero (bordo)
+        outline=2,
+        shadow=1,
+        alignment=2 # In basso al centro
+    )
 
-    # Combina le parole in linee di massimo 6 parole
-    all_words = []
+    # Raccogli tutte le parole con i loro timestamp da tutti i segmenti
+    all_words_with_timestamps = []
     for segment in segments:
         for word_info in segment['words']:
-            all_words.append({'start': word_info['start'], 'end': word_info['end'], 'text': word_info['word']})
+            all_words_with_timestamps.append({
+                'start': word_info['start'],
+                'end': word_info['end'],
+                'text': word_info['word']
+            })
 
-    current_line = []
-    current_line_count = 0
-    current_line_start = None
+    # Crea un evento di sottotitolo per ogni parola
+    # Questa è la logica che ti darà l'effetto "parola per parola"
+    for word_data in all_words_with_timestamps:
+        event = pysubs2.SSAEvent(
+            start=int(word_data['start'] * 1000),
+            end=int(word_data['end'] * 1000),
+            text=word_data['text'],
+            style="Default" # Usa lo stile ciano per ogni parola
+        )
+        subs.append(event)
 
-    for i, word in enumerate(all_words):
-        current_line.append(word)
-
-        if len(current_line) == 6 or i == len(all_words) - 1:
-            line_text = ""
-            for w in current_line:
-                # La durata del karaoke è la durata della parola
-                duration_ms = int((w['end'] - w['start']) * 1000)
-                line_text += f"{{\\k{duration_ms}}}{w['text']} "
-
-            line_start_ms = int(current_line[0]['start'] * 1000)
-            line_end_ms = int(current_line[-1]['end'] * 1000)
-
-            event = pysubs2.SSAEvent(
-                start=line_start_ms,
-                end=line_end_ms,
-                text=line_text.strip()
-            )
-            subs.append(event)
-
-            current_line = []
+    # Ordina gli eventi per tempo di inizio per assicurare il rendering corretto
+    subs.sort()
 
     subs.save(ass_path, format='ass')
     return ass_path
 
 def generate_reel(video_path, ass_path, start_time, end_time, output_path):
-    """Usa FFmpeg per tagliare il video e imprimere i sottotitoli."""
+    """Usa FFmpeg per tagliare il video, ritagliarlo in formato reel e imprimere i sottotitoli."""
     print(f"Avvio di FFmpeg per generare il reel: {output_path}")
 
     start_str = str(timedelta(seconds=start_time))
     end_str = str(timedelta(seconds=end_time))
 
+    # Comando FFmpeg per il formato Reel
+    # Aggiunti i filtri -vf per il ridimensionamento e il ritaglio in formato 9:16
     command = [
         "ffmpeg",
         "-i", video_path,
         "-ss", start_str,
         "-to", end_str,
-        "-vf", f"ass={ass_path}",
+        # Filtro per ridimensionare e ritagliare il video in 1080x1920
+        "-vf", f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,ass={ass_path}",
         "-c:v", "libx264",
         "-preset", "medium",
         "-crf", "22",
