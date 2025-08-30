@@ -56,6 +56,7 @@ def create_ass_file(segments, ass_path="temp_subtitles.ass"):
         outlinecolor=pysubs2.Color(0, 0, 0),    # Nero (bordo)
         outline=2,
         shadow=1,
+        marginv=70,
         alignment=2 # In basso al centro
     )
 
@@ -100,16 +101,18 @@ def generate_reel(video_path, ass_path, start_time, end_time, output_path):
         "-i", video_path,
         "-ss", start_str,
         "-to", end_str,
-        # Filtro per ridimensionare e ritagliare il video in 1080x1920
-        "-vf", f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,ass={ass_path}",
+        "-vf", f"crop=ih*(9/16):ih,ass={ass_path}",
         "-c:v", "libx264",
         "-preset", "medium",
         "-crf", "22",
         "-c:a", "aac",
         "-b:a", "192k",
         "-y",
-        output_path
+        output_path  # Deve essere qualcosa tipo 'video_output.mp4'
     ]
+
+
+
 
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
