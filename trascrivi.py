@@ -10,7 +10,7 @@ import torch
 # --- CONFIGURAZIONE ---
 # Specifica la lingua per la trascrizione
 # Usa "en" per l'inglese, "it" per l'italiano o "" per il rilevamento automatico.
-LANGUAGE = "it"
+LANGUAGE = "en"
 # --- FINE CONFIGURAZIONE ---
 
 # NUOVA FUNZIONE: per formattare i secondi in un formato timestamp leggibile
